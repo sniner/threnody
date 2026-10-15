@@ -3,7 +3,7 @@ name = "threnody"
 version = "0.1.0"
 description = "Inventory of a music library in a SQLite database"
 authors = [{ name = "Stefan Schönberger", email = "stefan@sniner.dev" }]
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 readme = "README.md"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
@@ -34,7 +34,7 @@ venv = ".venv"
 
 [tool.ruff]
 line-length = 90
-target-version = "py311"
+target-version = "py312"
 
 [tool.ruff.lint]
 extend-select = ["I", "UP", "SIM", "B"]

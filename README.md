@@ -17,7 +17,7 @@ of the library is lossless.
 uv tool install /path/to/threnody
 ```
 
-threnody needs Python 3.11 or later and runs on Linux and macOS.
+threnody needs Python 3.12 or later and runs on Linux and macOS.
 
 ## Usage
 
@@ -114,8 +114,9 @@ sqlite3 music.db "SELECT artist, albums FROM credit_overview WHERE role = 'compo
 ## Repeated scans
 
 A scan compares each file's size and modification time with the inventory and
-reads only new or changed files, so a scan over an unchanged library takes
-seconds. Albums and files that are gone from SOURCE are removed from the
+reads only new or changed files. A scan over an unchanged library costs one
+stat per file: seconds on a local disk, about a minute for 20,000 files on a
+network share. Albums and files that are gone from SOURCE are removed from the
 inventory; a renamed folder counts as gone and new.
 
 If more than 5% of the recorded albums (at least 3) are gone at once, the scan

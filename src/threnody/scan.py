@@ -21,7 +21,7 @@ from .db import (
     set_exclude,
     set_meta,
 )
-from .library import audio_files, find_albums, parse_folder
+from .library import find_albums, parse_folder
 from .tags import AudioFile, Reader, TagError, read_audio
 
 # A scan refuses to remove more albums than this share of the known albums (but
@@ -90,7 +90,7 @@ class Context:
 
 
 def scan_album(
-    ctx: Context, rel: Path, known: dict[str, tuple[int, int]] | None
+    ctx: Context, rel: Path, names: list[str], known: dict[str, tuple[int, int]] | None
 ) -> AlbumScan:
     """Read the files of one album folder that are new or changed since the last
     scan; known is None for an album not recorded yet."""
@@ -98,10 +98,9 @@ def scan_album(
     folder = ctx.source / rel
     old = known or {}
     try:
-        names = audio_files(folder)
         for name in names:
             st = (folder / name).stat()
-            entry = FileScan(name.name, st.st_size, st.st_mtime_ns, "unchanged")
+            entry = FileScan(name, st.st_size, st.st_mtime_ns, "unchanged")
             if old.get(entry.file) != (st.st_size, st.st_mtime_ns):
                 entry.status = "new" if entry.file not in old else "changed"
                 log.debug("reading %s", folder / name)
@@ -126,7 +125,7 @@ def scan_album(
 
 def scan_all(
     ctx: Context,
-    albums: list[Path],
+    albums: dict[Path, list[str]],
     known: dict[str, dict[str, tuple[int, int]]],
     jobs: int,
 ) -> list[AlbumScan]:
@@ -134,8 +133,8 @@ def scan_all(
     last_report = time.monotonic()
     with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as pool:
         futures = {
-            pool.submit(scan_album, ctx, rel, known.get(rel.as_posix())): rel
-            for rel in albums
+            pool.submit(scan_album, ctx, rel, names, known.get(rel.as_posix())): rel
+            for rel, names in albums.items()
         }
         for future in concurrent.futures.as_completed(futures):
             res = future.result()
@@ -385,7 +384,7 @@ def scan_into(
 ) -> ScanResult:
     log.info("step 1 of 2: looking for album folders in %s", source)
     discovery = find_albums(source, exclude)
-    found = discovery.albums
+    found = list(discovery.albums)
     for rel, reason in discovery.unreadable.items():
         log.warning("%s: cannot read this folder (%s), its albums are kept", rel, reason)
     known = known_files(con)
@@ -404,7 +403,7 @@ def scan_into(
     if not known:
         log.info("empty database: every file gets read, which takes a while")
     ctx = Context(source, read, started.date().isoformat())
-    albums = scan_all(ctx, found, known, jobs)
+    albums = scan_all(ctx, discovery.albums, known, jobs)
     for folder in gone:
         log.info("gone: %s", folder)
     albums += [AlbumScan(folder, "gone") for folder in gone]

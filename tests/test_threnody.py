@@ -78,8 +78,9 @@ def query(db: Path, sql: str) -> list[tuple]:
 
 def test_find_albums(library: Path) -> None:
     found = find_albums(library, frozenset({Path("Incoming")}))
-    assert found.albums == [DISC, ALBUM, VARIOUS]
-    assert find_albums(library).albums == [
+    assert list(found.albums) == [DISC, ALBUM, VARIOUS]
+    assert found.albums[ALBUM] == ["01 Allegro.flac", "02 Andante.flac"]
+    assert list(find_albums(library).albums) == [
         DISC,
         Path("Incoming/New Band - Demo"),
         ALBUM,
@@ -322,3 +323,20 @@ def test_open_db_rejects_newer_format(tmp_path: Path) -> None:
     con.close()
     with pytest.raises(Exception, match="newer threnody"):
         open_db(db)
+
+
+def test_unreadable_folder_keeps_its_albums(library: Path, tmp_path: Path) -> None:
+    db = tmp_path / "music.db"
+    run(library, db, exclude=frozenset({Path("Incoming")}))
+    locked = library / "Various"
+    locked.chmod(0)
+    try:
+        found = find_albums(library)
+        assert VARIOUS not in found.albums
+        assert list(found.unreadable) == [Path("Various")]
+        result = scan(None, db, read=fake_read)
+    finally:
+        locked.chmod(0o755)
+    assert result.having("gone") == []
+    assert [a.folder for a in result.having("error")] == ["Various"]
+    assert query(db, "SELECT COUNT(*) FROM album") == [(3,)]

@@ -18,18 +18,18 @@ YEAR_RE = re.compile(r"\s*\((\d{4})(?:-\d\d){0,2}\)")
 LEADING_YEAR_RE = re.compile(r"^(\d{4}) - ")
 
 
-def is_skipped(path: Path) -> bool:
-    name = path.name
-    return name.startswith(".") or name in SKIP_NAMES or path.is_symlink()
+def is_skipped(name: str) -> bool:
+    return name.startswith(".") or name in SKIP_NAMES
 
 
-def is_audio(path: Path) -> bool:
-    return path.is_file() and path.suffix.lower() in AUDIO_SUFFIXES
+def is_audio(name: str) -> bool:
+    return Path(name).suffix.lower() in AUDIO_SUFFIXES
 
 
 @dataclass
 class Discovery:
-    albums: list[Path] = field(default_factory=list)
+    # Album folder relative to the root -> names of its audio files, sorted.
+    albums: dict[Path, list[str]] = field(default_factory=dict)
     # Folders that could not be read, relative to the root, with the reason.
     unreadable: dict[Path, str] = field(default_factory=dict)
 
@@ -42,36 +42,27 @@ def find_albums(root: Path, exclude: frozenset[Path] = frozenset()) -> Discovery
     album per disc folder. A folder that cannot be read is listed in
     Discovery.unreadable rather than raising; the caller must not treat albums below
     it as gone.
+
+    Path.walk tells files from folders without a stat per entry, which matters on
+    a network share; the only stat per file is the one the scan makes for size and
+    modification time.
     """
     found = Discovery()
-    pending = [root]
-    while pending:
-        folder = pending.pop()
-        try:
-            entries = sorted(folder.iterdir())
-            has_audio = False
-            for entry in entries:
-                rel = entry.relative_to(root)
-                if rel in exclude or is_skipped(entry):
-                    continue
-                if entry.is_dir():
-                    pending.append(entry)
-                elif is_audio(entry):
-                    has_audio = True
-        except OSError as e:
-            found.unreadable[folder.relative_to(root)] = e.strerror or str(e)
-            continue
-        if has_audio and folder != root:
-            found.albums.append(folder.relative_to(root))
-    found.albums.sort()
+
+    def on_error(e: OSError) -> None:
+        folder = Path(e.filename or root)
+        found.unreadable[folder.relative_to(root)] = e.strerror or str(e)
+
+    for folder, dirnames, filenames in root.walk(on_error=on_error):
+        rel = folder.relative_to(root)
+        dirnames[:] = sorted(
+            d for d in dirnames if not is_skipped(d) and rel / d not in exclude
+        )
+        audio = sorted(f for f in filenames if not is_skipped(f) and is_audio(f))
+        if audio and folder != root:
+            found.albums[rel] = audio
+    found.albums = dict(sorted(found.albums.items()))
     return found
-
-
-def audio_files(folder: Path) -> list[Path]:
-    """Return the audio files directly in folder, as names."""
-    return sorted(
-        Path(p.name) for p in folder.iterdir() if not is_skipped(p) and is_audio(p)
-    )
 
 
 @dataclass(frozen=True)
