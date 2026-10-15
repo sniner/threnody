@@ -1,0 +1,40 @@
+[project]
+name = "threnody"
+version = "0.1.0"
+description = "Inventory of a music library in a SQLite database"
+authors = [{ name = "Stefan Schönberger", email = "stefan@sniner.dev" }]
+requires-python = ">=3.11"
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+classifiers = [
+    "Private :: Do Not Upload",
+    "Programming Language :: Python :: 3",
+]
+dependencies = ["mutagen>=1.47"]
+
+[project.scripts]
+threnody = "threnody.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.13.1,<0.14.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = ["pytest>=8.3.5,<9", "ruff>=0.12"]
+
+[tool.pytest.ini_options]
+addopts = "-ra -q"
+testpaths = ["tests"]
+
+[tool.pyright]
+typeCheckingMode = "standard"
+venvPath = "."
+venv = ".venv"
+
+[tool.ruff]
+line-length = 90
+target-version = "py311"
+
+[tool.ruff.lint]
+extend-select = ["I", "UP", "SIM", "B"]

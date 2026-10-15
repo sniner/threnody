@@ -1,0 +1,10 @@
+# VIM swap files
+*.sw[a-p]
+# macOS Finder metadata
+.DS_Store
+__pycache__/
+.venv/
+.pytest_cache/
+.ruff_cache/
+# The inventory itself is private
+*.db
