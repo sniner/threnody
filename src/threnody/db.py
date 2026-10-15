@@ -242,11 +242,15 @@ class Names:
 
 
 def known_files(con: sqlite3.Connection) -> dict[str, dict[str, tuple[int, int]]]:
-    """Return {album folder: {file: (size, mtime_ns)}} for every recorded track."""
+    """Return {album folder: {file: (size, mtime_ns)}} for every recorded track.
+
+    Tracks whose tags could not be read are left out, so the next scan reads them
+    again; a file fixed by renaming it on the server keeps its size and time.
+    """
     result: dict[str, dict[str, tuple[int, int]]] = {}
     rows = con.execute(
         "SELECT al.folder, t.file, t.size, t.mtime_ns FROM track t "
-        "JOIN album al ON al.id = t.album_id"
+        "JOIN album al ON al.id = t.album_id WHERE t.error IS NULL"
     )
     for folder, file, size, mtime in rows:
         result.setdefault(folder, {})[file] = (size, mtime)

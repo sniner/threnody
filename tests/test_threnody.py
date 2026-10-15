@@ -298,6 +298,15 @@ def test_unreadable_file_is_recorded_with_error(library: Path, tmp_path: Path) -
     assert query(db, "SELECT format, error FROM track WHERE file = '02 Broken.flac'") == [
         ("flac", "broken")
     ]
+    # Fixed on the server without a change of size or time: read again anyway.
+    st = (library / VARIOUS / "02 Broken.flac").stat()
+    write(library / VARIOUS / "02 Broken.flac", b"god")
+    os.utime(library / VARIOUS / "02 Broken.flac", ns=(st.st_atime_ns, st.st_mtime_ns))
+    result = run(library, db)
+    assert result.errors == []
+    assert query(db, "SELECT title, error FROM track WHERE file = '02 Broken.flac'") == [
+        ("Broken", None)
+    ]
 
 
 def test_refusals(library: Path, tmp_path: Path) -> None:

@@ -124,7 +124,7 @@ stops before writing anything. That is usually an unmounted or incomplete share.
 Pass `--allow-missing` if the albums were removed on purpose.
 
 A file whose tags cannot be read is still recorded with its name, size and
-suffix, and the scan reports it as a warning.
+suffix, the scan reports it as a warning, and every later scan tries it again.
 
 ## Development
 
